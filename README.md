@@ -13,3 +13,12 @@ $ git clone https://github.com/samanthacabrera/cat-chi.git
 $ cd cat-chi
 3. Run the game:
 $ python main.py
+
+
+ 
+## Game Instructions
+1. Start the game to enter the first level.
+2. Read the level objective displayed on the screen.
+3. Drag and drop the specified object to the best location on the grid based on Feng Shui principles.
+4. If the object is placed correctly, you will proceed to the next level.
+5. Complete all levels to win the game!
