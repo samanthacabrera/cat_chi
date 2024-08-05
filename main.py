@@ -2,7 +2,6 @@ import pygame
 import sys
 import random
 
-# Initialize Pygame
 pygame.init()
 
 # Screen dimensions
@@ -11,33 +10,31 @@ screen_height = 800
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Cat Chi")
 
+# Grid dimensions
+grid_size = 5
+cell_size = 100
+grid_origin = ((screen_width - (grid_size * cell_size)) // 2, (screen_height - (grid_size * cell_size) - 120))
+
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
-# Grid dimensions
-grid_size = 5
-cell_size = 100
-grid_origin = ((screen_width - (grid_size * cell_size)) // 2, (screen_height - (grid_size * cell_size) - 120))  # Center the grid and leave space for end text
+# Fonts
+font = pygame.font.Font(None, 24)
+title_font = pygame.font.Font(None, 48)
+end_font = pygame.font.Font(None, 24)
 
-# Load and resize images
+# Images
 cat_img = pygame.image.load('cat.jpg')
 cat_img = pygame.transform.scale(cat_img, (100, 100))
+heart_img = pygame.image.load('heart.jpg')
+heart_img = pygame.transform.scale(heart_img, (30, 30))
 
-# Fonts
-font = pygame.font.Font(None, 24)  # Smaller font size for cell text
-title_font = pygame.font.Font(None, 48)
-end_font = pygame.font.Font(None, 24)  # Smaller font size for end screen
+grid_positions = [(grid_origin[0] + x * cell_size, grid_origin[1] + y * cell_size) for y in range(grid_size) for x in range(grid_size)]
 
-# Grid positions
-grid_positions = [(grid_origin[0] + x * cell_size, grid_origin[1] + y * cell_size) 
-                  for y in range(grid_size) for x in range(grid_size)]
-
-# Define immovable objects positions for each level
 def generate_immovable_objects(level):
     edge_positions = []
 
-    # Collect edge positions
     for x in range(grid_size):
         edge_positions.append((grid_origin[0] + x * cell_size, grid_origin[1]))  # Top edge
         edge_positions.append((grid_origin[0] + x * cell_size, grid_origin[1] + (grid_size - 1) * cell_size))  # Bottom edge
@@ -45,7 +42,6 @@ def generate_immovable_objects(level):
         edge_positions.append((grid_origin[0], grid_origin[1] + y * cell_size))  # Left edge
         edge_positions.append((grid_origin[0] + (grid_size - 1) * cell_size, grid_origin[1] + y * cell_size))  # Right edge
 
-    # Ensure there's no overlap and set specific items for each level
     if level == 0:  # Bedroom
         return {
             "Door": edge_positions.pop(random.randint(0, len(edge_positions) - 1)),
@@ -83,8 +79,9 @@ levels = [
 
 current_level = 0
 immovable_objects = generate_immovable_objects(current_level)
+lives = 3
+game_over = False
 
-# Draggable Class
 class Draggable:
     def __init__(self, text, position):
         self.text = text
@@ -116,11 +113,9 @@ class Draggable:
         closest_pos = min(grid_positions, key=lambda pos: (pos[0] - self.rect.x) ** 2 + (pos[1] - self.rect.y) ** 2)
         self.rect.topleft = closest_pos
 
-# Create draggable objects for each level
 def create_draggable_objects():
     return [Draggable(level["object"], (grid_origin[0], grid_origin[1])) for level in levels if levels.index(level) == current_level]
 
-# Draw the grid
 def draw_grid(surface):
     for x in range(grid_size + 1):
         pygame.draw.line(surface, WHITE, 
@@ -131,40 +126,38 @@ def draw_grid(surface):
                          (grid_origin[0], grid_origin[1] + y * cell_size), 
                          (grid_origin[0] + grid_size * cell_size, grid_origin[1] + y * cell_size))
     
-    # Draw cell text
     for pos in grid_positions:
         cell_text = font.render(" ", True, WHITE)
         text_rect = cell_text.get_rect(center=(pos[0] + cell_size // 2, pos[1] + cell_size // 2))
         surface.blit(cell_text, text_rect)
 
-# Draw the background
 def draw_background(surface):
     surface.fill(BLACK)
 
-# Evaluate feng shui score (simple example)
 def evaluate_feng_shui(draggable):
     return draggable.rect.topleft == levels[current_level]["correct_pos"]
 
-# Draw immovable objects
 def draw_immovable_objects(surface):
     for obj, pos in immovable_objects.items():
         text_surface = font.render(obj, True, WHITE)
         text_rect = text_surface.get_rect(center=(pos[0] + cell_size // 2, pos[1] + cell_size // 2))
         surface.blit(text_surface, text_rect)
 
-# Draw the title and image
 def draw_title(surface):
     title_text = title_font.render("Cat Chi", True, WHITE)
     title_rect = title_text.get_rect(center=(screen_width // 2, 50))
     surface.blit(title_text, title_rect)
     surface.blit(cat_img, (20, 20))
 
+def draw_lives(surface, lives):
+    for i in range(lives):
+        surface.blit(heart_img, (screen_width - 40 - i * 40, 20))
+
 # Main game loop
 def main():
-    global current_level, immovable_objects
+    global current_level, immovable_objects, lives, game_over
     clock = pygame.time.Clock()
     draggable_objects = create_draggable_objects()
-    game_over = False
 
     while True:
         for event in pygame.event.get():
@@ -184,6 +177,7 @@ def main():
             draw_immovable_objects(screen)
             for obj in draggable_objects:
                 obj.draw(screen)
+            draw_lives(screen, lives)
 
             level_title = title_font.render(f"Level: {current_level + 1} - {levels[current_level]['name']}", True, WHITE)
             title_rect = level_title.get_rect(center=(screen_width // 2, grid_origin[1] - 40))
@@ -193,30 +187,48 @@ def main():
             instructions_rect = instructions_text.get_rect(center=(screen_width // 2, grid_origin[1] - 20))
             screen.blit(instructions_text, instructions_rect)
 
+            pygame.display.flip()
+            clock.tick(30)
+
+            # Check for completion
             if all(evaluate_feng_shui(obj) for obj in draggable_objects):
-                success_text = font.render("Great job! Moving to the next level...", True, WHITE)
-                screen.blit(success_text, (screen_width // 2 - success_text.get_width() // 2, screen_height - 100))
-                pygame.display.flip()
-                pygame.time.wait(2000)  # Wait for 2 seconds
                 current_level += 1
                 if current_level >= len(levels):
                     game_over = True
                 else:
                     immovable_objects = generate_immovable_objects(current_level)
                     draggable_objects = create_draggable_objects()
-                continue
+            else:
+                if any(obj.rect.colliderect(pygame.Rect(*levels[current_level]["correct_pos"], cell_size, cell_size)) for obj in draggable_objects):
+                    lives -= 1
+                    if lives <= 0:
+                        game_over = True
+                    else:
+                        immovable_objects = generate_immovable_objects(current_level)
+                        draggable_objects = create_draggable_objects()
+
+        else:  # Game over state
+            screen.fill(BLACK)
+            game_over_text = end_font.render("Game Over! Press Q to Quit or R to Restart", True, WHITE)
+            game_over_rect = game_over_text.get_rect(center=(screen_width // 2, screen_height // 2))
+            screen.blit(game_over_text, game_over_rect)
 
             pygame.display.flip()
-            clock.tick(60)
-        else:
-            screen.fill(BLACK)
-            draw_background(screen)
-            draw_grid(screen)
-            draw_immovable_objects(screen)
-            end_text = end_font.render("Congratulations! You've completed all levels!", True, WHITE)
-            screen.blit(end_text, (screen_width // 2 - end_text.get_width() // 2, grid_origin[1] + (grid_size * cell_size) + 20))
-            pygame.display.flip()
-            clock.tick(60)
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_r:
+                        current_level = 0
+                        immovable_objects = generate_immovable_objects(current_level)
+                        draggable_objects = create_draggable_objects()
+                        lives = 3
+                        game_over = False
+                    elif event.key == pygame.K_q:
+                        pygame.quit()
+                        sys.exit()
 
 if __name__ == "__main__":
     main()
